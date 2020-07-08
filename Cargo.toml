@@ -1,9 +1,14 @@
 [package]
 name = "rivenu"
+description = "A RISC-V emulator."
 version = "0.1.0"
 authors = ["Justus K <justus.k@protonmail.com>"]
 edition = "2018"
+readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[features]
+default = ["rv64i"]
+# This feature will compile the emulator with support for the 64bit base
+rv64i = []
+# This feature will compile the emulator with support for the 32bit base
+rv32i = []

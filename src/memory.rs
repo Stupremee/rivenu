@@ -67,20 +67,18 @@ impl Memory {
     ///
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn read<V: MemoryValue>(&self, addr: Address) -> V {
-        let size = dbg!(std::mem::size_of::<V>());
-        let mut addr = addr % self.ram.len() as u64;
+        let size = std::mem::size_of::<V>();
+        let addr = addr % self.ram.len() as u64;
 
-        let mut bytes = Vec::with_capacity(size);
-        for _ in 0..size {
-            let byte = self
-                .mmios
-                .iter()
-                .find(|mmio| mmio.maps_at(addr))
-                .map(|mmio| mmio.read(addr))
-                .unwrap_or(self.ram[addr as usize]);
-            bytes.push(dbg!(byte));
-            addr += 1;
-        }
+        let bytes = if let Some(mmio) = self.mmios.iter().find(|mmio| mmio.maps_at(addr)) {
+            (0..size)
+                .map(|i| mmio.read(addr + i as u64))
+                .collect::<Vec<u8>>()
+        } else {
+            (0..size)
+                .map(|i| self.ram[addr as usize + i])
+                .collect::<Vec<u8>>()
+        };
         V::from_bytes(&bytes)
     }
 
@@ -93,16 +91,18 @@ impl Memory {
         let addr = addr % self.ram.len() as u64;
         let bytes = val.to_bytes();
 
-        if let Some(mmio) = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr)) {
+        let mmio = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr));
+
+        if let Some(mmio) = mmio {
             bytes
                 .into_iter()
                 .enumerate()
-                .for_each(|(i, x)| mmio.write(addr + i as u64, x));
+                .for_each(|(i, val)| mmio.write(addr + i as u64, val));
         } else {
             bytes
                 .into_iter()
                 .enumerate()
-                .for_each(|(i, x)| self.ram[addr as usize + i] = x);
+                .for_each(|(i, val)| self.ram[addr as usize + i] = val);
         }
     }
 }
