@@ -14,6 +14,7 @@
 //!
 //! [`XLEN`]: ../constant.XLEN.html
 
+use crate::Address;
 use std::ops::{Deref, DerefMut};
 
 /// The `Register` type specifies the width of every x register.
@@ -32,13 +33,29 @@ pub struct Registers {
     /// We only hold 31 registers here, because the `x0` register is hardcoded
     /// in the read / write methods.
     xregs: [IntRegister; 31],
+    /// The current program counter.
+    pc: Address,
     // TODO: Other registers.
 }
 
 impl Registers {
     /// Creates a new `Registers` struct, with all registers set to 0.
     pub fn new() -> Self {
-        Self { xregs: [0; 31] }
+        Self {
+            xregs: [0; 31],
+            pc: 0,
+        }
+    }
+
+    /// Returns a copy of the current program counter.
+    pub fn pc(&self) -> Address {
+        self.pc
+    }
+
+    /// Returns a mutable reference to the program counter,
+    /// which can be used to mutate the `pc`.
+    pub fn pc_mut(&mut self) -> &mut Address {
+        &mut self.pc
     }
 
     /// Reads the value of the from the integer register `reg`.
