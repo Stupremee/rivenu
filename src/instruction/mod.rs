@@ -99,7 +99,70 @@ pub enum Variant {
     },
 }
 
-/// A `Kind` is any instruction type that exists in differen extensions.
-///
-/// A `Kind` can be, for example `ld`, `add`, `jal`.
-pub enum Kind {}
+/// Internel macro to generate the `Kind` enum.
+macro_rules! kind_enum {
+    ($($feature:expr => [$($entry:ident),*]),*) => {
+        /// A `Kind` is any instruction type that exists in differen extensions.
+        ///
+        /// A `Kind` can be, for example `ld`, `add`, `jal`.
+        #[allow(non_camel_case_types)]
+        #[allow(missing_docs)]
+        pub enum Kind {
+            $($(
+                #[cfg(feature = $feature)]
+                $entry,
+            )*)*
+        }
+    };
+}
+
+kind_enum! {
+    "rv32i" => [
+        ADDI,
+        SLTI,
+        SLTIU,
+        ANDI,
+        ORI,
+        XORI,
+        SLLI,
+        SRLI,
+        SRAI,
+
+        ADD,
+        SLT,
+        SLTU,
+        AND,
+        OR,
+        XOR,
+        SLL,
+        SLR,
+        SUB,
+        SRA,
+
+        LUI,
+        AUIPC,
+
+        JAL,
+        JALR,
+
+        BEQ,
+        BNE,
+        BLT,
+        BGE,
+        BLTU,
+        BGEU,
+
+        LW,
+        LH,
+        LB,
+        LHU,
+        LBU,
+
+        SW,
+        SH,
+        SB,
+
+        FENCE,
+        FENCE_I
+    ]
+}

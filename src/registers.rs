@@ -15,18 +15,21 @@
 //! [`XLEN`]: ../constant.XLEN.html
 
 use crate::Address;
-use std::ops::{Deref, DerefMut};
 
 /// The `Register` type specifies the width of every x register.
 ///
 /// The width is 64bits on RV64I and 32bits on R32I.
 #[cfg(feature = "rv64i")]
 pub type IntRegister = u64;
+/// The `Register` type specifies the width of every x register.
+///
+/// The width is 64bits on RV64I and 32bits on R32I.
 #[cfg(feature = "rv32i")]
 pub type IntRegister = u32;
 
 /// The `Registers` struct holds all registers that are accessible by
 /// the CPU.
+#[derive(Default)]
 pub struct Registers {
     /// The x registers, or integer registers.
     ///
@@ -41,10 +44,7 @@ pub struct Registers {
 impl Registers {
     /// Creates a new `Registers` struct, with all registers set to 0.
     pub fn new() -> Self {
-        Self {
-            xregs: [0; 31],
-            pc: 0,
-        }
+        Default::default()
     }
 
     /// Returns a copy of the current program counter.

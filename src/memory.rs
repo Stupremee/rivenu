@@ -39,6 +39,7 @@ pub trait Mmio {
 }
 
 /// The memory struct.
+#[derive(Default)]
 pub struct Memory {
     ram: Vec<u8>,
     mmios: Vec<Box<dyn Mmio>>,
@@ -50,10 +51,7 @@ impl Memory {
     /// [`MEMORY_SIZE`]: ./constant.MEMORY_SIZE.html
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn new() -> Self {
-        Self {
-            ram: vec![0; MEMORY_SIZE],
-            mmios: Vec::new(),
-        }
+        Default::default()
     }
 
     /// Registers a new [`Mmio`] device.
@@ -68,11 +66,11 @@ impl Memory {
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn read<V: MemoryValue>(&self, addr: Address) -> V {
         let size = std::mem::size_of::<V>();
-        let addr = addr % self.ram.len() as u64;
+        let addr = addr % self.ram.len() as Address;
 
         let bytes = if let Some(mmio) = self.mmios.iter().find(|mmio| mmio.maps_at(addr)) {
             (0..size)
-                .map(|i| mmio.read(addr + i as u64))
+                .map(|i| mmio.read(addr + i as Address))
                 .collect::<Vec<u8>>()
         } else {
             (0..size)
@@ -88,7 +86,7 @@ impl Memory {
     ///
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn write<V: MemoryValue>(&mut self, addr: Address, val: V) {
-        let addr = addr % self.ram.len() as u64;
+        let addr = addr % self.ram.len() as Address;
         let bytes = val.to_bytes();
 
         let mmio = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr));
@@ -97,7 +95,7 @@ impl Memory {
             bytes
                 .into_iter()
                 .enumerate()
-                .for_each(|(i, val)| mmio.write(addr + i as u64, val));
+                .for_each(|(i, val)| mmio.write(addr + i as Address, val));
         } else {
             bytes
                 .into_iter()
