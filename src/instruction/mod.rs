@@ -10,6 +10,8 @@
 
 pub mod parse;
 
+use std::fmt;
+
 /// Represents a register by his index.
 pub type RegisterIndex = usize;
 
@@ -26,6 +28,21 @@ pub struct Instruction {
     pub kind: Kind,
     /// The raw bytes of this instruction.
     pub raw: u32,
+}
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = self.kind.to_string();
+        let len = 8 - kind.len();
+        write!(
+            f,
+            "0x{:08x} {}{}{}",
+            self.raw,
+            kind,
+            " ".repeat(len),
+            self.variant
+        )
+    }
 }
 
 /// The different encoding variants for immediate values.
@@ -101,18 +118,33 @@ pub enum Variant {
     },
 }
 
+impl fmt::Display for Variant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Variant::R { rd, rs1, rs2 } => write!(f, "r{} r{} r{}", rd, rs1, rs2),
+            Variant::I { val, rd, rs1 } => write!(f, "r{} r{} 0x{:x}", rd, rs1, val),
+            Variant::S { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
+            Variant::B { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
+            Variant::U { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
+            Variant::J { val, rd } => write!(f, "r{} -x{:x}", rd, val),
+        }
+    }
+}
+
 /// Internel macro to generate the `Kind` enum.
 macro_rules! kind_enum {
-    ($($feature:expr => [$($entry:ident),*]),*) => {
+    ($($feature:expr => [$($entry:ident -> $str:expr),*]),*) => {
+        use derive_more::Display;
         /// A `Kind` is any instruction type that exists in differen extensions.
         ///
         /// A `Kind` can be, for example `ld`, `add`, `jal`.
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Display, Debug, Clone, Copy)]
         pub enum Kind {
             $($(
                 #[cfg(feature = $feature)]
+                #[display(fmt = $str)]
                 $entry,
             )*)*
         }
@@ -121,51 +153,51 @@ macro_rules! kind_enum {
 
 kind_enum! {
     "rv32i_inst" => [
-        ADDI,
-        SLTI,
-        SLTIU,
-        ANDI,
-        ORI,
-        XORI,
-        SLLI,
-        SRLI,
-        SRAI,
+        ADDI -> "addi",
+        SLTI -> "slti",
+        SLTIU -> "sltiu",
+        ANDI -> "andi",
+        ORI -> "ori",
+        XORI -> "xori",
+        SLLI -> "slli",
+        SRLI -> "srli",
+        SRAI -> "srai",
 
-        ADD,
-        SLT,
-        SLTU,
-        AND,
-        OR,
-        XOR,
-        SLL,
-        SLR,
-        SUB,
-        SRA,
+        ADD -> "add",
+        SLT -> "slt",
+        SLTU -> "sltu",
+        AND -> "and",
+        OR -> "or",
+        XOR -> "xor",
+        SLL -> "sll",
+        SLR -> "slr",
+        SUB -> "sub",
+        SRA -> "sra",
 
-        LUI,
-        AUIPC,
+        LUI -> "lui",
+        AUIPC -> "auipc",
 
-        JAL,
-        JALR,
+        JAL -> "jal",
+        JALR -> "jalr",
 
-        BEQ,
-        BNE,
-        BLT,
-        BGE,
-        BLTU,
-        BGEU,
+        BEQ -> "beq",
+        BNE -> "bne",
+        BLT -> "blt",
+        BGE -> "bge",
+        BLTU -> "bltu",
+        BGEU -> "bgeu",
 
-        LW,
-        LH,
-        LB,
-        LHU,
-        LBU,
+        LW -> "lw",
+        LH -> "lh",
+        LB -> "lb",
+        LHU -> "lhu",
+        LBU -> "lbu",
 
-        SW,
-        SH,
-        SB,
+        SW -> "sw",
+        SH -> "sh",
+        SB -> "sb",
 
-        FENCE,
-        FENCE_I
+        FENCE -> "fence",
+        FENCE_I -> "fence_i"
     ]
 }

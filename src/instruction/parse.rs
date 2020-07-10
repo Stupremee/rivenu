@@ -219,7 +219,7 @@ pub fn decode(raw_inst: u32) {
     };
 
     if let Some(inst) = inst {
-        println!("Instruction {:#010x} is {:?}", raw_inst, inst);
+        println!("{}", inst);
     } else {
         println!("Instruction {:#010x} is invalid", raw_inst);
     }
