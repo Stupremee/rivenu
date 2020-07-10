@@ -32,7 +32,11 @@ pub struct Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.kind, self.variant)
+        if let Kind::ECALL | Kind::EBREAK = self.kind {
+            write!(f, "{}", self.kind)
+        } else {
+            write!(f, "{} {}", self.kind, self.variant)
+        }
     }
 }
 
@@ -189,7 +193,10 @@ kind_enum! {
         SB -> "sb",
 
         FENCE -> "fence",
-        FENCE_I -> "fence_i"
+        FENCE_I -> "fence_i",
+
+        ECALL -> "ecall",
+        EBREAK -> "ebreak"
     ],
     "rv64i_inst" => [
         LWU -> "lwu",

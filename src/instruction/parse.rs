@@ -151,11 +151,17 @@ const I_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
         map.insert((0b0000011, 0b010), Kind::LW);
         map.insert((0b0000011, 0b100), Kind::LBU);
         map.insert((0b0000011, 0b101), Kind::LHU);
+
+        map.insert((0b1100111, 0b00), Kind::JALR);
+
+        map.insert((0b0001111, 0b000), Kind::FENCE);
     }
 
     if cfg!(feature = "rv64i_inst") {
         map.insert((0b0000011, 0b110), Kind::LWU);
         map.insert((0b0000011, 0b011), Kind::LD);
+
+        map.insert((0b0001111, 0b001), Kind::FENCE_I);
     }
 
     map
@@ -181,6 +187,23 @@ impl Type {
                 let rs1 = (inst >> 15) & 0x1F;
                 let funct3 = ((inst >> 12) & 0x7) as u8;
                 let rd = (inst >> 7) & 0x1F;
+
+                // ECALL and EBREAK instructions
+                if opcode == 0b1110011 {
+                    let kind = match imm {
+                        0 => Kind::ECALL,
+                        _ => Kind::EBREAK,
+                    };
+                    return Some(Instruction {
+                        variant: Variant::I {
+                            val: 0,
+                            rd: 0,
+                            rs1: 0,
+                        },
+                        kind,
+                        raw: inst,
+                    });
+                }
 
                 let (kind, imm) = match funct3 {
                     0b001 | 0b101 => {
@@ -267,6 +290,7 @@ mod tests {
         assert(0xC00B4B13, "xori r22 r22 0xfffffc00");
         assert(0x0407E793, "ori r15 r15 0x40");
         assert(0x4807F713, "andi r14 r15 0x480");
-        assert(0x01093403, "ld r8 r18 0x10")
+        assert(0x01093403, "ld r8 r18 0x10");
+        assert(0x00000073, "ecall");
     }
 }
