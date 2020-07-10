@@ -9,6 +9,12 @@ readme = "README.md"
 [features]
 default = ["rv64i"]
 # This feature will compile the emulator with support for the 64bit base
-rv64i = []
+rv64i = ["rv64i_inst", "rv32i_inst"]
 # This feature will compile the emulator with support for the 32bit base
-rv32i = []
+rv32i = ["rv32i_inst"]
+
+rv32i_inst = []
+rv64i_inst = []
+
+[dependencies]
+once_cell = "1.4.0"

@@ -18,6 +18,7 @@ pub type RegisterIndex = usize;
 ///
 /// [`Variant`]: ./enum.Variant.html
 /// [`Kind`]: ./enum.Kind.html
+#[derive(Debug)]
 pub struct Instruction {
     /// The operands of this `Instruction`
     pub variant: Variant,
@@ -32,6 +33,7 @@ pub struct Instruction {
 /// Details can be found in chapter 2.3 in the [`spec`].
 ///
 /// [`spec`]: https://riscv.org/specifications/isa-spec-pdf/
+#[derive(Debug)]
 pub enum Variant {
     /// The R(egister) variant is used to process data from two
     /// source registers, and store the result in a destination register.
@@ -107,6 +109,7 @@ macro_rules! kind_enum {
         /// A `Kind` can be, for example `ld`, `add`, `jal`.
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
+        #[derive(Debug, Clone, Copy)]
         pub enum Kind {
             $($(
                 #[cfg(feature = $feature)]
@@ -117,7 +120,7 @@ macro_rules! kind_enum {
 }
 
 kind_enum! {
-    "rv32i" => [
+    "rv32i_inst" => [
         ADDI,
         SLTI,
         SLTIU,
