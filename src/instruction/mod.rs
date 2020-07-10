@@ -32,16 +32,7 @@ pub struct Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let kind = self.kind.to_string();
-        let len = 8 - kind.len();
-        write!(
-            f,
-            "0x{:08x} {}{}{}",
-            self.raw,
-            kind,
-            " ".repeat(len),
-            self.variant
-        )
+        write!(f, "{} {}", self.kind, self.variant)
     }
 }
 

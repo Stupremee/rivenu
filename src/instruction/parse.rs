@@ -136,14 +136,14 @@ const TYPE_TABLE: [Option<Type>; 128] = [
 ];
 
 /// Maps a (opcode, funct3) to a `Kind`.
-const KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
+const I_KIND_TABLE: Lazy<HashMap<u8, Kind>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert((0b0010011, 000), Kind::ADDI);
-    map.insert((0b0010011, 010), Kind::SLTI);
-    map.insert((0b0010011, 011), Kind::SLTIU);
-    map.insert((0b0010011, 100), Kind::XORI);
-    map.insert((0b0010011, 110), Kind::ORI);
-    map.insert((0b0010011, 111), Kind::ANDI);
+    map.insert(0b000, Kind::ADDI);
+    map.insert(0b010, Kind::SLTI);
+    map.insert(0b011, Kind::SLTIU);
+    map.insert(0b100, Kind::XORI);
+    map.insert(0b110, Kind::ORI);
+    map.insert(0b111, Kind::ANDI);
     map
 });
 
@@ -165,7 +165,7 @@ impl Type {
                 let imm = (inst >> 20) & 0xFFF;
 
                 let rs1 = (inst >> 15) & 0x1F;
-                let funct3 = (inst >> 12) & 0x7;
+                let funct3 = ((inst >> 12) & 0x7) as u8;
                 let rd = (inst >> 7) & 0x1F;
 
                 let (kind, imm) = match funct3 {
@@ -189,7 +189,7 @@ impl Type {
                     _ => {
                         // Sign extend the immediate
                         let imm = ((imm as i32) << 20) >> 20;
-                        let kind = KIND_TABLE.get(&(opcode, funct3 as u8))?.clone();
+                        let kind = I_KIND_TABLE.get(&funct3)?.clone();
                         (kind, imm)
                     }
                 };
@@ -204,24 +204,36 @@ impl Type {
                     raw: inst,
                 })
             }
+            Type::U => {
+                let rd = (inst >> 7) & 0x1F;
+                let imm = (inst & 0xFFFFF000) as i32;
+
+                let kind = match opcode {
+                    0b0110111 => Kind::LUI,
+                    _ => return None,
+                };
+
+                Some(Instruction {
+                    variant: Variant::U {
+                        val: imm,
+                        rd: rd as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
             _ => None,
         }
     }
 }
 
-pub fn decode(raw_inst: u32) {
+pub fn decode(raw_inst: u32) -> Option<Instruction> {
     let opcode = raw_inst & 0x7F;
 
-    let inst = if let Some(variant) = &TYPE_TABLE[opcode as usize] {
+    if let Some(variant) = &TYPE_TABLE[opcode as usize] {
         variant.decode(raw_inst)
     } else {
         None
-    };
-
-    if let Some(inst) = inst {
-        println!("{}", inst);
-    } else {
-        println!("Instruction {:#010x} is invalid", raw_inst);
     }
 }
 
@@ -229,15 +241,17 @@ pub fn decode(raw_inst: u32) {
 mod tests {
     use super::*;
 
+    fn assert(inst: u32, s: &str) {
+        let decoded = decode(inst);
+        assert!(decoded.is_some());
+        assert_eq!(&decoded.unwrap().to_string(), s);
+    }
+
     #[test]
-    fn test_parse() {
-        let inst = 0xFF010113u32;
-        decode(inst);
-        let inst = 0x00269693;
-        decode(inst);
-        let inst = 0x0207d793;
-        decode(inst);
-        let inst = 0x4037d493;
-        decode(inst);
+    fn test_i_type() {
+        assert(0x0B040413, "addi r8 r8 0xb0");
+        assert(0xC00B4B13, "xori r22 r22 0xfffffc00");
+        assert(0x0407E793, "ori r15 r15 0x40");
+        assert(0x4807F713, "andi r14 r15 0x480")
     }
 }

@@ -40,7 +40,6 @@ pub trait Mmio {
 }
 
 /// The memory struct.
-#[derive(Default)]
 pub struct Memory {
     ram: RefCell<Vec<u8>>,
     mmios: Vec<Box<dyn Mmio>>,
@@ -52,7 +51,10 @@ impl Memory {
     /// [`MEMORY_SIZE`]: ./constant.MEMORY_SIZE.html
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            ram: RefCell::new(vec![0; MEMORY_SIZE]),
+            mmios: Vec::new(),
+        }
     }
 
     /// Registers a new [`Mmio`] device.
