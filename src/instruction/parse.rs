@@ -136,14 +136,28 @@ const TYPE_TABLE: [Option<Type>; 128] = [
 ];
 
 /// Maps a (opcode, funct3) to a `Kind`.
-const I_KIND_TABLE: Lazy<HashMap<u8, Kind>> = Lazy::new(|| {
+const I_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert(0b000, Kind::ADDI);
-    map.insert(0b010, Kind::SLTI);
-    map.insert(0b011, Kind::SLTIU);
-    map.insert(0b100, Kind::XORI);
-    map.insert(0b110, Kind::ORI);
-    map.insert(0b111, Kind::ANDI);
+    if cfg!(feature = "rv32i_inst") {
+        map.insert((0b0010011, 0b000), Kind::ADDI);
+        map.insert((0b0010011, 0b010), Kind::SLTI);
+        map.insert((0b0010011, 0b011), Kind::SLTIU);
+        map.insert((0b0010011, 0b100), Kind::XORI);
+        map.insert((0b0010011, 0b110), Kind::ORI);
+        map.insert((0b0010011, 0b111), Kind::ANDI);
+
+        map.insert((0b0000011, 0b000), Kind::LB);
+        map.insert((0b0000011, 0b001), Kind::LH);
+        map.insert((0b0000011, 0b010), Kind::LW);
+        map.insert((0b0000011, 0b100), Kind::LBU);
+        map.insert((0b0000011, 0b101), Kind::LHU);
+    }
+
+    if cfg!(feature = "rv64i_inst") {
+        map.insert((0b0000011, 0b110), Kind::LWU);
+        map.insert((0b0000011, 0b011), Kind::LD);
+    }
+
     map
 });
 
@@ -189,7 +203,7 @@ impl Type {
                     _ => {
                         // Sign extend the immediate
                         let imm = ((imm as i32) << 20) >> 20;
-                        let kind = I_KIND_TABLE.get(&funct3)?.clone();
+                        let kind = I_KIND_TABLE.get(&(opcode, funct3))?.clone();
                         (kind, imm)
                     }
                 };
@@ -252,6 +266,7 @@ mod tests {
         assert(0x0B040413, "addi r8 r8 0xb0");
         assert(0xC00B4B13, "xori r22 r22 0xfffffc00");
         assert(0x0407E793, "ori r15 r15 0x40");
-        assert(0x4807F713, "andi r14 r15 0x480")
+        assert(0x4807F713, "andi r14 r15 0x480");
+        assert(0x01093403, "ld r8 r18 0x10")
     }
 }

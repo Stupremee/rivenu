@@ -190,5 +190,21 @@ kind_enum! {
 
         FENCE -> "fence",
         FENCE_I -> "fence_i"
+    ],
+    "rv64i_inst" => [
+        LWU -> "lwu",
+        LD -> "ld",
+        SD -> "sd",
+
+        ADDIW -> "addiw",
+        SLLIW -> "slliw",
+        SRLIW -> "srliw",
+        SRAIW -> "sraiw",
+
+        ADDW -> "addw",
+        SUBW -> "subw",
+        SLLW -> "sllw",
+        SRLW -> "srlw",
+        SRAW -> "sraw"
     ]
 }
