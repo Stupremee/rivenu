@@ -167,6 +167,22 @@ const I_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
     map
 });
 
+const S_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    if cfg!(feature = "rv32i_inst") {
+        map.insert((0b0100011, 0b000), Kind::SB);
+        map.insert((0b0100011, 0b001), Kind::SH);
+        map.insert((0b0100011, 0b010), Kind::SW);
+    }
+
+    if cfg!(feature = "rv64i_inst") {
+        map.insert((0b0100011, 0b011), Kind::SD);
+    }
+
+    map
+});
+
 enum Type {
     R,
     I,
@@ -247,6 +263,7 @@ impl Type {
 
                 let kind = match opcode {
                     0b0110111 => Kind::LUI,
+                    0b0010111 => Kind::AUIPC,
                     _ => return None,
                 };
 
@@ -254,6 +271,28 @@ impl Type {
                     variant: Variant::U {
                         val: imm,
                         rd: rd as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
+            Type::S => {
+                let imm = (inst >> 25) & 0x7F;
+                let imm = (imm << 5) | ((inst >> 7) & 0xF);
+                // Sign extend immediate value
+                let imm = ((imm as i32) << 20) >> 20;
+
+                let rs1 = (inst >> 15) & 0x1F;
+                let rs2 = (inst >> 20) & 0x1F;
+                let funct3 = ((inst >> 12) & 0x7) as u8;
+
+                let kind = S_KIND_TABLE.get(&(opcode, funct3))?.clone();
+
+                Some(Instruction {
+                    variant: Variant::S {
+                        val: imm,
+                        rs1: rs1 as usize,
+                        rs2: rs2 as usize,
                     },
                     kind,
                     raw: inst,
@@ -292,5 +331,16 @@ mod tests {
         assert(0x4807F713, "andi r14 r15 0x480");
         assert(0x01093403, "ld r8 r18 0x10");
         assert(0x00000073, "ecall");
+    }
+
+    #[test]
+    fn test_u_type() {
+        assert(0x00011537, "lui r10 0x11000");
+        assert(0xFFFFE6B7, "lui r13 0xffffe000");
+    }
+
+    #[test]
+    fn test_s_type() {
+        assert(0x00B70723, "sb 0xe r14 r11");
     }
 }
