@@ -18,6 +18,7 @@
 //! [`RISC-V Spec`]: https://riscv.org/specifications/isa-spec-pdf/
 
 use crate::Address;
+use std::cell::RefCell;
 
 /// The default `MEMORY_SIZE` is 128MiB.
 // TODO: This can be changed via CLI parameter
@@ -41,7 +42,7 @@ pub trait Mmio {
 /// The memory struct.
 #[derive(Default)]
 pub struct Memory {
-    ram: Vec<u8>,
+    ram: RefCell<Vec<u8>>,
     mmios: Vec<Box<dyn Mmio>>,
 }
 
@@ -65,18 +66,19 @@ impl Memory {
     ///
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn read<V: MemoryValue>(&self, addr: Address) -> V {
-        let size = std::mem::size_of::<V>();
-        let addr = addr % self.ram.len() as Address;
+        let ram = self.ram.borrow();
 
-        let bytes = if let Some(mmio) = self.mmios.iter().find(|mmio| mmio.maps_at(addr)) {
-            (0..size)
-                .map(|i| mmio.read(addr + i as Address))
-                .collect::<Vec<u8>>()
-        } else {
-            (0..size)
-                .map(|i| self.ram[addr as usize + i])
-                .collect::<Vec<u8>>()
+        let size = std::mem::size_of::<V>();
+        let addr = addr % ram.len() as Address;
+
+        let read = |mmio: Option<&Box<dyn Mmio>>, addr| {
+            mmio.map_or_else(|| ram[addr as usize], |mmio| mmio.read(addr))
         };
+
+        let mmio = self.mmios.iter().find(|mmio| mmio.maps_at(addr));
+        let bytes = (0..size)
+            .map(|i| read(mmio, addr + i as u64))
+            .collect::<Vec<u8>>();
         V::from_bytes(&bytes)
     }
 
@@ -86,22 +88,19 @@ impl Memory {
     ///
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn write<V: MemoryValue>(&mut self, addr: Address, val: V) {
-        let addr = addr % self.ram.len() as Address;
+        let mut ram = self.ram.borrow_mut();
+
+        let addr = addr % ram.len() as Address;
         let bytes = val.to_bytes();
 
-        let mmio = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr));
-
-        if let Some(mmio) = mmio {
-            bytes
-                .into_iter()
-                .enumerate()
-                .for_each(|(i, val)| mmio.write(addr + i as Address, val));
-        } else {
-            bytes
-                .into_iter()
-                .enumerate()
-                .for_each(|(i, val)| self.ram[addr as usize + i] = val);
-        }
+        let mut mmio = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr));
+        bytes.into_iter().enumerate().for_each(|(i, val)| {
+            if let Some(ref mut mmio) = mmio {
+                mmio.write(addr + i as u64, val)
+            } else {
+                ram[addr as usize + i] = val
+            }
+        })
     }
 }
 
