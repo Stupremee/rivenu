@@ -32,7 +32,7 @@ const TYPE_TABLE: [Option<Type>; 128] = [
     /* 0b0011000 */ None,
     /* 0b0011001 */ None,
     /* 0b0011010 */ None,
-    /* 0b0011011 */ None,
+    /* 0b0011011 */ Some(Type::I),
     /* 0b0011100 */ None,
     /* 0b0011101 */ None,
     /* 0b0011110 */ None,
@@ -64,7 +64,7 @@ const TYPE_TABLE: [Option<Type>; 128] = [
     /* 0b0111000 */ None,
     /* 0b0111001 */ None,
     /* 0b0111010 */ None,
-    /* 0b0111011 */ None,
+    /* 0b0111011 */ Some(Type::R),
     /* 0b0111100 */ None,
     /* 0b0111101 */ None,
     /* 0b0111110 */ None,
@@ -201,6 +201,14 @@ const R_KIND_TABLE: Lazy<HashMap<(u8, u8, u8), Kind>> = Lazy::new(|| {
         map.insert((0b0110011, 0b111, 0b0000000), Kind::AND);
     }
 
+    if cfg!(feature = "rv64i_inst") {
+        map.insert((0b0111011, 0b000, 0b0000000), Kind::ADDW);
+        map.insert((0b0111011, 0b000, 0b0100000), Kind::SUBW);
+        map.insert((0b0111011, 0b001, 0b0000000), Kind::SLLW);
+        map.insert((0b0111011, 0b101, 0b0000000), Kind::SRLW);
+        map.insert((0b0111011, 0b101, 0b1000000), Kind::SRAW);
+    }
+
     map
 });
 
@@ -270,6 +278,27 @@ impl Type {
                             val: 0,
                             rd: 0,
                             rs1: 0,
+                        },
+                        kind,
+                        raw: inst,
+                    });
+                } else if cfg!(feature = "rv64i_inst") && opcode == 0b0011011 {
+                    let shifttop = (imm >> 6) & 0x7F;
+                    let shamt = imm & 0x1F;
+
+                    let kind = match funct3 {
+                        0b000 => Kind::ADDIW,
+                        0b001 => Kind::SLLIW,
+                        0b101 if shifttop == 0 => Kind::SRLIW,
+                        0b101 if shifttop != 0 => Kind::SRAIW,
+                        _ => return None,
+                    };
+
+                    return Some(Instruction {
+                        variant: Variant::I {
+                            val: shamt as i32,
+                            rd: rd as usize,
+                            rs1: rs1 as usize,
                         },
                         kind,
                         raw: inst,
@@ -446,6 +475,11 @@ mod tests {
         assert(0x4807F713, "andi r14 r15 0x480");
         assert(0x01093403, "ld r8 r18 0x10");
         assert(0x00000073, "ecall");
+        assert(0x00269693, "slli r13 r13 0x2");
+        assert(0x000FD013, "srli r0 r31 0x0");
+        assert(0x400FD013, "srai r0 r31 0x0");
+        assert(0x4000D71B, "sraiw r14 r1 0x0");
+        assert(0x0010D71B, "srliw r14 r1 0x1");
     }
 
     #[test]
@@ -464,6 +498,7 @@ mod tests {
         assert(0x00E686B3, "add r13 r13 r14");
         assert(0x40F70733, "sub r14 r14 r15");
         assert(0x43F55513, "srai r10 r10 0x3f");
+        assert(0x0020873B, "addw r14 r1 r2");
     }
 
     #[test]
