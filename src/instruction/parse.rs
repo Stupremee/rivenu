@@ -382,11 +382,42 @@ impl Type {
                     raw: inst,
                 })
             }
-            _ => None,
+            Type::J => {
+                let imm = (inst & 0xFFFFF000) >> 12;
+                let rd = (inst >> 7) & 0x1F;
+
+                let imm20 = (imm >> 19) & 0x1;
+                let imm101 = (imm >> 9) & 0x3FF;
+                let imm11 = (imm >> 8) & 0x1;
+                let imm1912 = imm & 0xFF;
+
+                // Sign extend immediate
+                let imm = (imm20 << 20) | (imm1912 << 12) | (imm11 << 11) | (imm101 << 1);
+                let imm = ((imm as i32) << 11) >> 11;
+
+                let kind = match opcode {
+                    0b1101111 => Kind::JAL,
+                    _ => return None,
+                };
+
+                Some(Instruction {
+                    variant: Variant::J {
+                        val: imm,
+                        rd: rd as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
         }
     }
 }
 
+/// Decodes a raw 32bit instruction.
+///
+/// See [`spec`] for more information on how to decode instructions.
+///
+/// [`spec`]: https://riscv.org/specifications/isa-spec-pdf/
 pub fn decode(raw_inst: u32) -> Option<Instruction> {
     let opcode = raw_inst & 0x7F;
 
@@ -432,11 +463,17 @@ mod tests {
     fn test_r_type() {
         assert(0x00E686B3, "add r13 r13 r14");
         assert(0x40F70733, "sub r14 r14 r15");
+        assert(0x43F55513, "srai r10 r10 0x3f");
     }
 
     #[test]
     fn test_b_type() {
         assert(0x040B8463, "beq 0x48 r23 r0");
         assert(0x3EB51A63, "bne 0x3f4 r10 r11");
+    }
+
+    #[test]
+    fn test_j_type() {
+        assert(0x00C000EF, "jal r1 0xc");
     }
 }
