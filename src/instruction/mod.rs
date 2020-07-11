@@ -121,7 +121,7 @@ impl fmt::Display for Variant {
             Variant::S { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
             Variant::B { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
             Variant::U { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
-            Variant::J { val, rd } => write!(f, "r{} -x{:x}", rd, val),
+            Variant::J { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
         }
     }
 }

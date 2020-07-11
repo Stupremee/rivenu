@@ -204,6 +204,22 @@ const R_KIND_TABLE: Lazy<HashMap<(u8, u8, u8), Kind>> = Lazy::new(|| {
     map
 });
 
+/// Maps a (opcode, funct3) to a B-Type `Kind`.
+const B_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    if cfg!(feature = "rv32i_inst") {
+        map.insert((0b1100011, 0b000), Kind::BEQ);
+        map.insert((0b1100011, 0b001), Kind::BNE);
+        map.insert((0b1100011, 0b100), Kind::BLT);
+        map.insert((0b1100011, 0b101), Kind::BGE);
+        map.insert((0b1100011, 0b110), Kind::BLTU);
+        map.insert((0b1100011, 0b111), Kind::BGEU);
+    }
+
+    map
+});
+
 enum Type {
     R,
     I,
@@ -218,6 +234,24 @@ impl Type {
         let opcode = (inst & 0x7F) as u8;
 
         match self {
+            Type::R => {
+                let rs1 = (inst >> 15) & 0x1F;
+                let rs2 = (inst >> 20) & 0x1F;
+                let rd = (inst >> 7) & 0x1F;
+                let funct3 = ((inst >> 12) & 0x7) as u8;
+                let funct7 = ((inst >> 25) & 0x7F) as u8;
+
+                let kind = R_KIND_TABLE.get(&(opcode, funct3, funct7))?.clone();
+                Some(Instruction {
+                    variant: Variant::R {
+                        rd: rd as usize,
+                        rs1: rs1 as usize,
+                        rs2: rs2 as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
             Type::I => {
                 let imm = (inst >> 20) & 0xFFF;
 
@@ -278,25 +312,6 @@ impl Type {
                     raw: inst,
                 })
             }
-            Type::U => {
-                let rd = (inst >> 7) & 0x1F;
-                let imm = (inst & 0xFFFFF000) as i32;
-
-                let kind = match opcode {
-                    0b0110111 => Kind::LUI,
-                    0b0010111 => Kind::AUIPC,
-                    _ => return None,
-                };
-
-                Some(Instruction {
-                    variant: Variant::U {
-                        val: imm,
-                        rd: rd as usize,
-                    },
-                    kind,
-                    raw: inst,
-                })
-            }
             Type::S => {
                 let imm = (inst >> 25) & 0x7F;
                 let imm = (imm << 5) | ((inst >> 7) & 0xF);
@@ -319,17 +334,47 @@ impl Type {
                     raw: inst,
                 })
             }
-            Type::R => {
+            Type::U => {
+                let rd = (inst >> 7) & 0x1F;
+                let imm = (inst & 0xFFFFF000) as i32;
+
+                let kind = match opcode {
+                    0b0110111 => Kind::LUI,
+                    0b0010111 => Kind::AUIPC,
+                    _ => return None,
+                };
+
+                Some(Instruction {
+                    variant: Variant::U {
+                        val: imm,
+                        rd: rd as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
+            Type::B => {
+                let imm12105 = (inst >> 25) & 0x7F;
+                let imm4111 = (inst >> 7) & 0x1F;
+
+                let imm12 = (imm12105 & 0x40) >> 6;
+                let imm105 = imm12105 & 0x3F;
+                let imm41 = (imm4111 & 0x1E) >> 1;
+                let imm11 = imm4111 & 0x1;
+
+                // Sign extend the immediate
+                let imm = (imm12 << 12) | (imm11 << 11) | (imm105 << 5) | (imm41 << 1);
+                let imm = ((imm as i32) << 19) >> 19;
+
                 let rs1 = (inst >> 15) & 0x1F;
                 let rs2 = (inst >> 20) & 0x1F;
-                let rd = (inst >> 7) & 0x1F;
                 let funct3 = ((inst >> 12) & 0x7) as u8;
-                let funct7 = ((inst >> 25) & 0x7F) as u8;
 
-                let kind = R_KIND_TABLE.get(&(opcode, funct3, funct7))?.clone();
+                let kind = B_KIND_TABLE.get(&(opcode, funct3))?.clone();
+
                 Some(Instruction {
-                    variant: Variant::R {
-                        rd: rd as usize,
+                    variant: Variant::B {
+                        val: imm,
                         rs1: rs1 as usize,
                         rs2: rs2 as usize,
                     },
@@ -387,5 +432,11 @@ mod tests {
     fn test_r_type() {
         assert(0x00E686B3, "add r13 r13 r14");
         assert(0x40F70733, "sub r14 r14 r15");
+    }
+
+    #[test]
+    fn test_b_type() {
+        assert(0x040B8463, "beq 0x48 r23 r0");
+        assert(0x3EB51A63, "bne 0x3f4 r10 r11");
     }
 }
