@@ -14,6 +14,7 @@ compile_error!("You have to enable on base feature (rv64i or rv32i)");
 pub mod cpu;
 pub mod instruction;
 pub mod memory;
+pub mod mmu;
 pub mod registers;
 
 /// The XLEN constant specifies the length of the integer registers and the

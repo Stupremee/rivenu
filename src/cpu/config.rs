@@ -66,6 +66,11 @@ impl CpuConfig {
         Ok(Self::raw(data))
     }
 
+    /// Reads and parses an [`ELF`] file. The configuration will map the `.text`
+    /// section into memory and starts executing the the entry address, that
+    /// is specified in the ELF file header.
+    ///
+    /// [`ELF`]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
     pub fn from_elf<P: AsRef<Path>>(path: P) -> Result<Self, ElfError> {
         let file = elf::File::open_path(path)?;
 
@@ -77,6 +82,8 @@ impl CpuConfig {
 
         let pc = file.ehdr.entry;
         let text_section = file.get_section(".text").ok_or(ElfError::NoTextSection)?;
+
+        todo!()
     }
 
     /// Returns a mutable reference to the program counter
