@@ -167,6 +167,7 @@ kind_enum! {
         SLL -> "sll",
         SLR -> "slr",
         SUB -> "sub",
+        SRL -> "srl",
         SRA -> "sra",
 
         LUI -> "lui",

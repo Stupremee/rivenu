@@ -135,7 +135,7 @@ const TYPE_TABLE: [Option<Type>; 128] = [
     /* 0b1111111 */ None,
 ];
 
-/// Maps a (opcode, funct3) to a `Kind`.
+/// Maps a (opcode, funct3) to a I-Type `Kind`.
 const I_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
     let mut map = HashMap::new();
     if cfg!(feature = "rv32i_inst") {
@@ -167,6 +167,7 @@ const I_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
     map
 });
 
+/// Maps a (opcode, funct3) to a S-Type `Kind`
 const S_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
@@ -178,6 +179,26 @@ const S_KIND_TABLE: Lazy<HashMap<(u8, u8), Kind>> = Lazy::new(|| {
 
     if cfg!(feature = "rv64i_inst") {
         map.insert((0b0100011, 0b011), Kind::SD);
+    }
+
+    map
+});
+
+/// Maps a (opcode, funct3, funct7) to a R-Type `Kind`
+const R_KIND_TABLE: Lazy<HashMap<(u8, u8, u8), Kind>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    if cfg!(feature = "rv32i_inst") {
+        map.insert((0b0110011, 0b000, 0b0000000), Kind::ADD);
+        map.insert((0b0110011, 0b000, 0b0100000), Kind::SUB);
+        map.insert((0b0110011, 0b001, 0b0000000), Kind::SLL);
+        map.insert((0b0110011, 0b010, 0b0000000), Kind::SLT);
+        map.insert((0b0110011, 0b011, 0b0000000), Kind::SLTU);
+        map.insert((0b0110011, 0b100, 0b0000000), Kind::XOR);
+        map.insert((0b0110011, 0b101, 0b0000000), Kind::SRL);
+        map.insert((0b0110011, 0b101, 0b0100000), Kind::SRA);
+        map.insert((0b0110011, 0b110, 0b0000000), Kind::OR);
+        map.insert((0b0110011, 0b111, 0b0000000), Kind::AND);
     }
 
     map
@@ -298,6 +319,24 @@ impl Type {
                     raw: inst,
                 })
             }
+            Type::R => {
+                let rs1 = (inst >> 15) & 0x1F;
+                let rs2 = (inst >> 20) & 0x1F;
+                let rd = (inst >> 7) & 0x1F;
+                let funct3 = ((inst >> 12) & 0x7) as u8;
+                let funct7 = ((inst >> 25) & 0x7F) as u8;
+
+                let kind = R_KIND_TABLE.get(&(opcode, funct3, funct7))?.clone();
+                Some(Instruction {
+                    variant: Variant::R {
+                        rd: rd as usize,
+                        rs1: rs1 as usize,
+                        rs2: rs2 as usize,
+                    },
+                    kind,
+                    raw: inst,
+                })
+            }
             _ => None,
         }
     }
@@ -342,5 +381,11 @@ mod tests {
     #[test]
     fn test_s_type() {
         assert(0x00B70723, "sb 0xe r14 r11");
+    }
+
+    #[test]
+    fn test_r_type() {
+        assert(0x00E686B3, "add r13 r13 r14");
+        assert(0x40F70733, "sub r14 r14 r15");
     }
 }
