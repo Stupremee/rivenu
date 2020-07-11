@@ -19,3 +19,5 @@ rv64i_inst = []
 [dependencies]
 once_cell = "1.4.0"
 derive_more = "0.99.9"
+elf = "0.0.10"
+thiserror = "1.0.20"
