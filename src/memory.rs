@@ -18,7 +18,7 @@
 //! [`RISC-V Spec`]: https://riscv.org/specifications/isa-spec-pdf/
 
 use crate::Address;
-use std::cell::RefCell;
+use mem_storage::Memory as MemoryStorage;
 
 /// The default `MEMORY_SIZE` is 128MiB.
 // TODO: This can be changed via CLI parameter
@@ -41,7 +41,7 @@ pub trait Mmio {
 
 /// The memory struct.
 pub struct Memory {
-    ram: RefCell<Vec<u8>>,
+    ram: Vec<u8>,
     mmios: Vec<Box<dyn Mmio>>,
 }
 
@@ -52,7 +52,7 @@ impl Memory {
     /// [`Mmio`]: ./trait.Mmio.html
     pub fn new() -> Self {
         Self {
-            ram: RefCell::new(vec![0; MEMORY_SIZE]),
+            ram: vec![0; MEMORY_SIZE],
             mmios: Vec::new(),
         }
     }
@@ -61,82 +61,49 @@ impl Memory {
     pub fn register(&mut self, mmio: Box<dyn Mmio>) {
         self.mmios.push(mmio);
     }
+}
 
-    /// Reads a single byte from the `ram` or the registered [`Mmio`] devices.
-    ///
-    /// It'll read from the **first** [`Mmio`] device that maps at the `addr`.
-    ///
-    /// [`Mmio`]: ./trait.Mmio.html
-    pub fn read<V: MemoryValue>(&self, addr: Address) -> V {
-        let ram = self.ram.borrow();
+impl MemoryStorage for Memory {
+    // TODO: Proper traps
+    type Error = ();
 
-        let size = std::mem::size_of::<V>();
-        let addr = addr % ram.len() as Address;
-
-        let read = |mmio: Option<&Box<dyn Mmio>>, addr| {
-            mmio.map_or_else(|| ram[addr as usize], |mmio| mmio.read(addr))
-        };
-
-        let mmio = self.mmios.iter().find(|mmio| mmio.maps_at(addr));
-        let bytes = (0..size)
-            .map(|i| read(mmio, addr + i as u64))
-            .collect::<Vec<u8>>();
-        V::from_bytes(&bytes)
+    fn get<I>(&self, index: I) -> Result<&I::Output, Self::Error>
+    where
+        I: std::slice::SliceIndex<[u8]>,
+    {
+        self.ram.get(index).ok_or(())
     }
 
-    /// Writes a single byte into the `ram` or the registered [`Mmio`] devices.
-    ///
-    /// It'll write into the **first** [`Mmio`] device that maps at the `addr`.
-    ///
-    /// [`Mmio`]: ./trait.Mmio.html
-    pub fn write<V: MemoryValue>(&mut self, addr: Address, val: V) {
-        let mut ram = self.ram.borrow_mut();
+    fn get_mut<I>(&mut self, index: I) -> Result<&mut I::Output, Self::Error>
+    where
+        I: std::slice::SliceIndex<[u8]>,
+    {
+        self.ram.get_mut(index).ok_or(())
+    }
 
-        let addr = addr % ram.len() as Address;
-        let bytes = val.to_bytes();
+    fn try_read_byte(&self, addr: usize) -> Result<u8, Self::Error> {
+        if let Some(mmio) = self.mmios.iter().find(|mmio| mmio.maps_at(addr as Address)) {
+            Ok(mmio.read(addr as Address))
+        } else {
+            self.get(addr).map(|x| *x)
+        }
+    }
 
-        let mut mmio = self.mmios.iter_mut().find(|mmio| mmio.maps_at(addr));
-        bytes.into_iter().enumerate().for_each(|(i, val)| {
-            if let Some(ref mut mmio) = mmio {
-                mmio.write(addr + i as u64, val)
-            } else {
-                ram[addr as usize + i] = val
-            }
-        })
+    fn try_write_byte(&mut self, addr: usize, byte: u8) -> Result<(), Self::Error> {
+        if let Some(mmio) = self
+            .mmios
+            .iter_mut()
+            .find(|mmio| mmio.maps_at(addr as Address))
+        {
+            mmio.write(addr as Address, byte);
+            Ok(())
+        } else {
+            let entry = self.get_mut(addr)?;
+            *entry = byte;
+            Ok(())
+        }
     }
 }
-
-macro_rules! value_impl {
-    ($($t:ty),*) => {
-        $(impl MemoryValue for $t {
-            fn to_bytes(self) -> Vec<u8> {
-                self.to_le_bytes().into()
-            }
-
-            fn from_bytes(bytes: &[u8]) -> Self {
-                use std::convert::TryInto;
-                Self::from_le_bytes(bytes.try_into().unwrap())
-            }
-        })*
-    };
-}
-
-/// Any value that can be converted to Little Endian bytes
-/// and then be written into [`Memory`].
-///
-/// [`Memory`]: ./struct.Memory.html
-pub trait MemoryValue {
-    /// Converts `self` into little endian bytes.
-    // TODO: Don't allocate bytes here.
-    fn to_bytes(self) -> Vec<u8>;
-
-    /// Converts the given bytes into `Self`.
-    ///
-    /// Panics if `bytes` are too much / less.
-    fn from_bytes(bytes: &[u8]) -> Self;
-}
-
-value_impl!(u8, i8, u16, i16, u32, i32, u64, i64);
 
 #[cfg(test)]
 mod tests {

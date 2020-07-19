@@ -33,6 +33,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mem_storage"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89aef44a8000740fc9fdf20d9d6fb6e9a37d19910338a94afd0e2549b05348ca"
+
+[[package]]
 name = "once_cell"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,6 +69,7 @@ dependencies = [
  "bitflags",
  "derive_more",
  "elf",
+ "mem_storage",
  "once_cell",
  "thiserror",
 ]
