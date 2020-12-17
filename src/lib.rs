@@ -21,14 +21,30 @@ pub mod instruction;
 pub mod memory;
 pub mod trap;
 
-use num_traits::Num;
-use std::convert::TryInto;
+use num_traits::{FromPrimitive, Num, ToPrimitive};
 
 /// This trait represents every type that can be used as an
 /// address of the CPU/Memory.
-pub trait Address: Num + TryInto<usize> + Clone + Copy {}
+pub trait Address: Num + Clone + Copy {
+    /// Convert `self` address to a `u64`.
+    fn to_u64(&self) -> u64;
 
-impl<T: Num + TryInto<usize> + Clone + Copy> Address for T {}
+    /// Convert a `u64` to a `Self`.
+    ///
+    /// A value passed to this function should always
+    /// fit in the inner storage type (e.g. `u32` for `RV32I`)
+    fn from_u64(num: u64) -> Self;
+}
+
+impl<T: Num + ToPrimitive + FromPrimitive + Clone + Copy> Address for T {
+    fn to_u64(&self) -> u64 {
+        self.to_u64().expect("address conversion to u64 failed")
+    }
+
+    fn from_u64(num: u64) -> Self {
+        Self::from_u64(num).expect("address conversion from u64 failed")
+    }
+}
 
 /// A [`Base`] represents the different RISC-V
 /// base ISA.

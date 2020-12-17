@@ -18,9 +18,11 @@
 //!
 //! [`RISC-V Spec`]: https://riscv.org/specifications/isa-spec-pdf/
 
-use bytemuck::Pod;
+mod mmu;
+pub use mmu::*;
 
 use crate::Base;
+use bytemuck::Pod;
 use std::{convert::TryInto, marker::PhantomData, mem};
 
 /// The default `MEMORY_SIZE` is 128MiB.
@@ -83,10 +85,8 @@ impl<B: Base> Memory<B> {
 
     #[allow(clippy::match_wild_err_arm)]
     fn addr_to_usize(addr: B::Addr) -> usize {
-        match TryInto::<usize>::try_into(addr) {
-            Ok(addr) => addr,
-            Err(_) => panic!("address conversion to usize failed"),
-        }
+        use num_traits::ToPrimitive;
+        addr.to_usize().expect("address conversion to usize failed")
     }
 }
 
