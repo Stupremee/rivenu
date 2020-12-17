@@ -10,15 +10,16 @@ mod config;
 pub use config::*;
 
 pub mod memory;
+pub mod trap;
 
 use num_traits::Num;
-use std::convert::TryFrom;
+use std::convert::TryInto;
 
 /// This trait represents every type that can be used as an
 /// address of the CPU/Memory.
-pub trait Address: Num + TryFrom<usize> {}
+pub trait Address: Num + TryInto<usize> {}
 
-impl<T: Num + TryFrom<usize>> Address for T {}
+impl<T: Num + TryInto<usize>> Address for T {}
 
 /// A [`Base`] represents the different RISC-V
 /// base ISA.

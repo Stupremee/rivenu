@@ -18,8 +18,10 @@
 //!
 //! [`RISC-V Spec`]: https://riscv.org/specifications/isa-spec-pdf/
 
+use bytemuck::Pod;
+
 use crate::Base;
-use std::marker::PhantomData;
+use std::{convert::TryInto, marker::PhantomData, mem};
 
 /// The default `MEMORY_SIZE` is 128MiB.
 pub const MEMORY_SIZE: usize = 0x1000000;
@@ -46,5 +48,61 @@ impl<B: Base> Memory<B> {
             memory: vec![0u8; size].into_boxed_slice(),
             _data: PhantomData,
         }
+    }
+
+    /// Writes a [`Pod`] into the memory at the given address.
+    ///
+    /// ## Panics
+    ///
+    /// - if address is out of bounds
+    /// - if address is unaligned to `T`
+    /// - if transmute to `T` failed
+    /// - if address can not be converted into a `usize`
+    pub fn write<T: Pod>(&mut self, addr: B::Addr, value: T) {
+        let addr = match TryInto::<usize>::try_into(addr) {
+            Ok(addr) => addr,
+            Err(_) => panic!("address conversion to usize failed"),
+        };
+        let bytes = bytemuck::bytes_of(&value);
+        let target = &mut self.memory[addr..addr + bytes.len()];
+        target.copy_from_slice(bytes);
+    }
+
+    /// Reads a [`Pod`] from the memory at the given address.
+    ///
+    /// ## Panics
+    ///
+    /// - if address is out of bounds
+    /// - if address is unaligned to `T`
+    /// - if transmute to `T` failed
+    /// - if address can not be converted into a `usize`
+    pub fn read<T: Pod>(&self, addr: B::Addr) -> T {
+        let addr = match TryInto::<usize>::try_into(addr) {
+            Ok(addr) => addr,
+            Err(_) => panic!("address conversion to usize failed"),
+        };
+        let bytes = &self.memory[addr..addr + mem::size_of::<T>()];
+        bytemuck::from_bytes::<T>(bytes).clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Memory;
+    use crate::RV64I;
+
+    #[test]
+    fn read_write() {
+        let mut memory = Memory::<RV64I>::with_size(1024);
+
+        memory.write(0xA0, 1);
+        assert_eq!(memory.read::<i32>(0xA0), 1);
+
+        memory.write(0x00, [13u8, 32, 43, 54]);
+        assert_eq!(memory.read::<[u8; 4]>(0x00), [13u8, 32, 43, 54]);
+
+        let num = 0xAAAA_BBBBu32;
+        memory.write(0x08, num.to_be());
+        assert_eq!(u32::from_be_bytes(memory.read::<[u8; 4]>(0x08)), num);
     }
 }
