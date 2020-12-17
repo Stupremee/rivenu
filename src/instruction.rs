@@ -11,10 +11,8 @@
 mod parse;
 pub use parse::*;
 
+use crate::cpu::RegisterIndex;
 use std::fmt;
-
-/// Represents a register by his index.
-pub type RegisterIndex = usize;
 
 /// A general RISC-V Instruction composed of a [`Variant`],
 /// a [`Kind`] and the raw instruction bytes.
@@ -119,10 +117,10 @@ impl fmt::Display for Variant {
         match self {
             Variant::R { rd, rs1, rs2 } => write!(f, "r{} r{} r{}", rd, rs1, rs2),
             Variant::I { val, rd, rs1 } => write!(f, "r{} r{} 0x{:x}", rd, rs1, val),
-            Variant::S { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
-            Variant::B { val, rs1, rs2 } => write!(f, "0x{:x} r{} r{}", val, rs1, rs2),
-            Variant::U { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
-            Variant::J { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
+            Variant::S { val, rs1, rs2 } | Variant::B { val, rs1, rs2 } => {
+                write!(f, "0x{:x} r{} r{}", val, rs1, rs2)
+            }
+            Variant::U { val, rd } | Variant::J { val, rd } => write!(f, "r{} 0x{:x}", rd, val),
         }
     }
 }

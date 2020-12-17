@@ -24,7 +24,7 @@ use crate::Base;
 use std::{convert::TryInto, marker::PhantomData, mem};
 
 /// The default `MEMORY_SIZE` is 128MiB.
-pub const MEMORY_SIZE: usize = 0x1000000;
+pub const MEMORY_SIZE: usize = 0x100_0000;
 
 /// The memory that is responsible for reading and writing
 /// different types into the raw memory of the CPU.
@@ -36,16 +36,18 @@ pub struct Memory<B: Base> {
     _data: PhantomData<B>,
 }
 
-impl<B: Base> Memory<B> {
+impl<B: Base> Default for Memory<B> {
     /// Creates a new [`Memory`] with the [default memory size](MEMORY_SIZE).
-    pub fn new() -> Self {
+    fn default() -> Self {
         Self::with_size(MEMORY_SIZE)
     }
+}
 
+impl<B: Base> Memory<B> {
     /// Creates a new [`Memory`] with the given size in bytes.
     pub fn with_size(size: usize) -> Self {
         Self {
-            memory: vec![0u8; size].into_boxed_slice(),
+            memory: vec![0_u8; size].into_boxed_slice(),
             _data: PhantomData,
         }
     }
@@ -59,10 +61,7 @@ impl<B: Base> Memory<B> {
     /// - if transmute to `T` failed
     /// - if address can not be converted into a `usize`
     pub fn write<T: Pod>(&mut self, addr: B::Addr, value: T) {
-        let addr = match TryInto::<usize>::try_into(addr) {
-            Ok(addr) => addr,
-            Err(_) => panic!("address conversion to usize failed"),
-        };
+        let addr = Self::addr_to_usize(addr);
         let bytes = bytemuck::bytes_of(&value);
         let target = &mut self.memory[addr..addr + bytes.len()];
         target.copy_from_slice(bytes);
@@ -77,12 +76,17 @@ impl<B: Base> Memory<B> {
     /// - if transmute to `T` failed
     /// - if address can not be converted into a `usize`
     pub fn read<T: Pod>(&self, addr: B::Addr) -> T {
-        let addr = match TryInto::<usize>::try_into(addr) {
+        let addr = Self::addr_to_usize(addr);
+        let bytes = &self.memory[addr..addr + mem::size_of::<T>()];
+        *bytemuck::from_bytes::<T>(bytes)
+    }
+
+    #[allow(clippy::match_wild_err_arm)]
+    fn addr_to_usize(addr: B::Addr) -> usize {
+        match TryInto::<usize>::try_into(addr) {
             Ok(addr) => addr,
             Err(_) => panic!("address conversion to usize failed"),
-        };
-        let bytes = &self.memory[addr..addr + mem::size_of::<T>()];
-        bytemuck::from_bytes::<T>(bytes).clone()
+        }
     }
 }
 

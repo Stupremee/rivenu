@@ -3,11 +3,11 @@
 use super::{Instruction, Kind, Variant};
 use crate::Base;
 use std::collections::HashMap;
-use std::lazy::Lazy;
+use std::lazy::SyncLazy;
 
 macro_rules! kind_table {
     ($($key:expr => $kind:ident),*$(,)?) => {
-        ::std::lazy::Lazy::new(|| {
+        ::std::lazy::SyncLazy::new(|| {
             let mut map = ::std::collections::HashMap::new();
 
             $(
@@ -21,47 +21,42 @@ macro_rules! kind_table {
 
 fn instruction_type(opcode: u8) -> Option<Type> {
     match opcode {
-        0b00000011 => Some(Type::I),
-        0b0001111 => Some(Type::I),
-        0b0010011 => Some(Type::I),
-        0b0010111 => Some(Type::U),
-        0b0011011 => Some(Type::I),
-        0b0100011 => Some(Type::S),
-        0b0110011 => Some(Type::R),
-        0b0110111 => Some(Type::U),
-        0b0111011 => Some(Type::R),
-        0b1100011 => Some(Type::B),
-        0b1100111 => Some(Type::I),
-        0b1101111 => Some(Type::J),
-        0b1110011 => Some(Type::I),
+        0b000_0011 | 0b000_1111 | 0b001_0011 | 0b001_1011 | 0b110_0111 | 0b111_0011 => {
+            Some(Type::I)
+        }
+        0b001_0111 | 0b011_0111 => Some(Type::U),
+        0b011_0011 | 0b011_1011 => Some(Type::R),
+        0b010_0011 => Some(Type::S),
+        0b110_0011 => Some(Type::B),
+        0b110_1111 => Some(Type::J),
         _ => None,
     }
 }
 
 fn i_kind_get<B: Base>(opcode: u8, funct3: u8) -> Option<Kind> {
-    const RV32_TABLE: Lazy<HashMap<(u8, u8), Kind>> = kind_table! {
-        (0b0010011, 0b000) => ADDI,
-        (0b0010011, 0b010) => SLTI,
-        (0b0010011, 0b011) => SLTIU,
-        (0b0010011, 0b100) => XORI,
-        (0b0010011, 0b110) => ORI,
-        (0b0010011, 0b111) => ANDI,
+    static RV32_TABLE: SyncLazy<HashMap<(u8, u8), Kind>> = kind_table! {
+        (0b001_0011, 0b000) => ADDI,
+        (0b001_0011, 0b010) => SLTI,
+        (0b001_0011, 0b011) => SLTIU,
+        (0b001_0011, 0b100) => XORI,
+        (0b001_0011, 0b110) => ORI,
+        (0b001_0011, 0b111) => ANDI,
 
-        (0b0000011, 0b000) => LB,
-        (0b0000011, 0b001) => LH,
-        (0b0000011, 0b010) => LW,
-        (0b0000011, 0b100) => LBU,
-        (0b0000011, 0b101) => LHU,
+        (0b000_0011, 0b000) => LB,
+        (0b000_0011, 0b001) => LH,
+        (0b000_0011, 0b010) => LW,
+        (0b000_0011, 0b100) => LBU,
+        (0b000_0011, 0b101) => LHU,
 
-        (0b1100111, 0b00) => JALR,
+        (0b110_0111, 0b00) => JALR,
 
-        (0b0001111, 0b000) => FENCE,
+        (0b000_1111, 0b000) => FENCE,
     };
 
-    const RV64_TABLE: Lazy<HashMap<(u8, u8), Kind>> = kind_table! {
-        (0b0000011, 0b110) => LWU,
-        (0b0000011, 0b011) => LD,
-        (0b0001111, 0b001) => FENCE_I,
+    static RV64_TABLE: SyncLazy<HashMap<(u8, u8), Kind>> = kind_table! {
+        (0b000_0011, 0b110) => LWU,
+        (0b000_0011, 0b011) => LD,
+        (0b000_1111, 0b001) => FENCE_I,
     };
 
     RV32_TABLE.get(&(opcode, funct3)).cloned().or_else(|| {
@@ -72,14 +67,14 @@ fn i_kind_get<B: Base>(opcode: u8, funct3: u8) -> Option<Kind> {
 }
 
 fn s_kind_get<B: Base>(opcode: u8, funct3: u8) -> Option<Kind> {
-    const RV32_TABLE: Lazy<HashMap<(u8, u8), Kind>> = kind_table! {
-        (0b0100011, 0b000) => SB,
-        (0b0100011, 0b001) => SH,
-        (0b0100011, 0b010) => SW,
+    static RV32_TABLE: SyncLazy<HashMap<(u8, u8), Kind>> = kind_table! {
+        (0b010_0011, 0b000) => SB,
+        (0b010_0011, 0b001) => SH,
+        (0b010_0011, 0b010) => SW,
     };
 
-    const RV64_TABLE: Lazy<HashMap<(u8, u8), Kind>> = kind_table! {
-        (0b0100011, 0b011) => SD,
+    static RV64_TABLE: SyncLazy<HashMap<(u8, u8), Kind>> = kind_table! {
+        (0b010_0011, 0b011) => SD,
     };
 
     RV32_TABLE.get(&(opcode, funct3)).cloned().or_else(|| {
@@ -90,25 +85,25 @@ fn s_kind_get<B: Base>(opcode: u8, funct3: u8) -> Option<Kind> {
 }
 
 fn r_kind_get<B: Base>(opcode: u8, funct3: u8, funct7: u8) -> Option<Kind> {
-    const RV32_TABLE: Lazy<HashMap<(u8, u8, u8), Kind>> = kind_table! {
-        (0b0110011, 0b000, 0b0000000) => ADD,
-        (0b0110011, 0b000, 0b0100000) => SUB,
-        (0b0110011, 0b001, 0b0000000) => SLL,
-        (0b0110011, 0b010, 0b0000000) => SLT,
-        (0b0110011, 0b011, 0b0000000) => SLTU,
-        (0b0110011, 0b100, 0b0000000) => XOR,
-        (0b0110011, 0b101, 0b0000000) => SRL,
-        (0b0110011, 0b101, 0b0100000) => SRA,
-        (0b0110011, 0b110, 0b0000000) => OR,
-        (0b0110011, 0b111, 0b0000000) => AND,
+    static RV32_TABLE: SyncLazy<HashMap<(u8, u8, u8), Kind>> = kind_table! {
+        (0b011_0011, 0b000, 0b000_0000) => ADD,
+        (0b011_0011, 0b000, 0b010_0000) => SUB,
+        (0b011_0011, 0b001, 0b000_0000) => SLL,
+        (0b011_0011, 0b010, 0b000_0000) => SLT,
+        (0b011_0011, 0b011, 0b000_0000) => SLTU,
+        (0b011_0011, 0b100, 0b000_0000) => XOR,
+        (0b011_0011, 0b101, 0b000_0000) => SRL,
+        (0b011_0011, 0b101, 0b010_0000) => SRA,
+        (0b011_0011, 0b110, 0b000_0000) => OR,
+        (0b011_0011, 0b111, 0b000_0000) => AND,
     };
 
-    const RV64_TABLE: Lazy<HashMap<(u8, u8, u8), Kind>> = kind_table! {
-        (0b0111011, 0b000, 0b0000000) => ADDW,
-        (0b0111011, 0b000, 0b0100000) => SUBW,
-        (0b0111011, 0b001, 0b0000000) => SLLW,
-        (0b0111011, 0b101, 0b0000000) => SRLW,
-        (0b0111011, 0b101, 0b1000000) => SRAW,
+    static RV64_TABLE: SyncLazy<HashMap<(u8, u8, u8), Kind>> = kind_table! {
+        (0b011_1011, 0b000, 0b000_0000) => ADDW,
+        (0b011_1011, 0b000, 0b010_0000) => SUBW,
+        (0b011_1011, 0b001, 0b000_0000) => SLLW,
+        (0b011_1011, 0b101, 0b000_0000) => SRLW,
+        (0b011_1011, 0b101, 0b100_0000) => SRAW,
     };
 
     RV32_TABLE
@@ -122,13 +117,13 @@ fn r_kind_get<B: Base>(opcode: u8, funct3: u8, funct7: u8) -> Option<Kind> {
 }
 
 fn b_kind_get<B: Base>(opcode: u8, funct3: u8) -> Option<Kind> {
-    const RV32_TABLE: Lazy<HashMap<(u8, u8), Kind>> = kind_table! {
-        (0b1100011, 0b000) => BEQ,
-        (0b1100011, 0b001) => BNE,
-        (0b1100011, 0b100) => BLT,
-        (0b1100011, 0b101) => BGE,
-        (0b1100011, 0b110) => BLTU,
-        (0b1100011, 0b111) => BGEU,
+    static RV32_TABLE: SyncLazy<HashMap<(u8, u8), Kind>> = kind_table! {
+        (0b110_0011, 0b000) => BEQ,
+        (0b110_0011, 0b001) => BNE,
+        (0b110_0011, 0b100) => BLT,
+        (0b110_0011, 0b101) => BGE,
+        (0b110_0011, 0b110) => BLTU,
+        (0b110_0011, 0b111) => BGEU,
     };
 
     RV32_TABLE.get(&(opcode, funct3)).cloned()
@@ -144,6 +139,7 @@ enum Type {
 }
 
 impl Type {
+    #[allow(clippy::similar_names)]
     fn decode<B: Base>(&self, inst: u32) -> Option<Instruction> {
         let opcode = (inst & 0x7F) as u8;
 
@@ -158,9 +154,9 @@ impl Type {
                 let kind = r_kind_get::<B>(opcode, funct3, funct7)?;
                 Some(Instruction {
                     variant: Variant::R {
-                        rd: rd as usize,
-                        rs1: rs1 as usize,
-                        rs2: rs2 as usize,
+                        rd: (rd as usize).into(),
+                        rs1: (rs1 as usize).into(),
+                        rs2: (rs2 as usize).into(),
                     },
                     kind,
                     raw: inst,
@@ -174,7 +170,7 @@ impl Type {
                 let rd = (inst >> 7) & 0x1F;
 
                 // ECALL and EBREAK instructions
-                if opcode == 0b1110011 {
+                if opcode == 0b111_0011 {
                     let kind = match imm {
                         0 => Kind::ECALL,
                         _ => Kind::EBREAK,
@@ -182,13 +178,13 @@ impl Type {
                     return Some(Instruction {
                         variant: Variant::I {
                             val: 0,
-                            rd: 0,
-                            rs1: 0,
+                            rd: 0.into(),
+                            rs1: 0.into(),
                         },
                         kind,
                         raw: inst,
                     });
-                } else if B::supports_rv64() && opcode == 0b0011011 {
+                } else if B::supports_rv64() && opcode == 0b001_1011 {
                     let shifttop = (imm >> 6) & 0x7F;
                     let shamt = imm & 0x1F;
 
@@ -203,8 +199,8 @@ impl Type {
                     return Some(Instruction {
                         variant: Variant::I {
                             val: shamt as i32,
-                            rd: rd as usize,
-                            rs1: rs1 as usize,
+                            rd: (rd as usize).into(),
+                            rs1: (rs1 as usize).into(),
                         },
                         kind,
                         raw: inst,
@@ -240,8 +236,8 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::I {
                         val: imm,
-                        rd: rd as usize,
-                        rs1: rs1 as usize,
+                        rd: (rd as usize).into(),
+                        rs1: (rs1 as usize).into(),
                     },
                     kind,
                     raw: inst,
@@ -262,8 +258,8 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::S {
                         val: imm,
-                        rs1: rs1 as usize,
-                        rs2: rs2 as usize,
+                        rs1: (rs1 as usize).into(),
+                        rs2: (rs2 as usize).into(),
                     },
                     kind,
                     raw: inst,
@@ -271,18 +267,18 @@ impl Type {
             }
             Type::U => {
                 let rd = (inst >> 7) & 0x1F;
-                let imm = (inst & 0xFFFFF000) as i32;
+                let imm = (inst & 0xFFFF_F000) as i32;
 
                 let kind = match opcode {
-                    0b0110111 => Kind::LUI,
-                    0b0010111 => Kind::AUIPC,
+                    0b011_0111 => Kind::LUI,
+                    0b001_0111 => Kind::AUIPC,
                     _ => return None,
                 };
 
                 Some(Instruction {
                     variant: Variant::U {
                         val: imm,
-                        rd: rd as usize,
+                        rd: (rd as usize).into(),
                     },
                     kind,
                     raw: inst,
@@ -310,15 +306,15 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::B {
                         val: imm,
-                        rs1: rs1 as usize,
-                        rs2: rs2 as usize,
+                        rs1: (rs1 as usize).into(),
+                        rs2: (rs2 as usize).into(),
                     },
                     kind,
                     raw: inst,
                 })
             }
             Type::J => {
-                let imm = (inst & 0xFFFFF000) >> 12;
+                let imm = (inst & 0xFFFF_F000) >> 12;
                 let rd = (inst >> 7) & 0x1F;
 
                 let imm20 = (imm >> 19) & 0x1;
@@ -327,18 +323,18 @@ impl Type {
                 let imm1912 = imm & 0xFF;
 
                 // Sign extend immediate
-                let imm = (imm20 << 20) | (imm1912 << 12) | (imm11 << 11) | (imm101 << 1);
-                let imm = ((imm as i32) << 11) >> 11;
+                let imm_sign = (imm20 << 20) | (imm1912 << 12) | (imm11 << 11) | (imm101 << 1);
+                let imm_sign = ((imm_sign as i32) << 11) >> 11;
 
                 let kind = match opcode {
-                    0b1101111 => Kind::JAL,
+                    0b110_1111 => Kind::JAL,
                     _ => return None,
                 };
 
                 Some(Instruction {
                     variant: Variant::J {
-                        val: imm,
-                        rd: rd as usize,
+                        val: imm_sign,
+                        rd: (rd as usize).into(),
                     },
                     kind,
                     raw: inst,
@@ -356,11 +352,7 @@ impl Type {
 pub fn decode<B: Base>(raw_inst: u32) -> Option<Instruction> {
     let opcode = raw_inst & 0x7F;
 
-    if let Some(variant) = instruction_type(opcode as u8) {
-        variant.decode::<B>(raw_inst)
-    } else {
-        None
-    }
+    instruction_type(opcode as u8).and_then(|variant| variant.decode::<B>(raw_inst))
 }
 
 #[cfg(test)]

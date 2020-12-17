@@ -6,19 +6,19 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Interrupt {
     // Software interrupts
-    UserSoftwareInterrupt,
-    SupervisorSoftwareInterrupt,
-    MachineSoftwareInterrupt,
+    UserSoftware,
+    SupervisorSoftware,
+    MachineSoftware,
 
     // Timers
-    UserTimerInterrupt,
-    SupervisorTimerInterrupt,
-    MachineTimerInterrupt,
+    UserTimer,
+    SupervisorTimer,
+    MachineTimer,
 
     // External interrupts
-    UserExternalInterrupt,
-    SupervisorExternalInterrupt,
-    MachineExternalInterrupt,
+    UserExternal,
+    SupervisorExternal,
+    MachineExternal,
 }
 
 /// All different exception kinds.
