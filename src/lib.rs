@@ -1,4 +1,5 @@
 //! todo
+#![feature(once_cell)]
 #![deny(
     rust_2018_idioms,
     clippy::pedantic,
@@ -9,6 +10,7 @@
 mod config;
 pub use config::*;
 
+pub mod instruction;
 pub mod memory;
 pub mod trap;
 
@@ -32,6 +34,11 @@ pub trait Base {
     /// The XLEN specifies the number of bits in the address type
     /// for this base.
     const XLEN: usize;
+
+    /// Returns whether this base ISA contains the `RV64I` instruction set.
+    ///
+    /// The `RV32I` instruction set will always be available.
+    fn supports_rv64() -> bool;
 }
 
 /// The RV32I base integer instruction set.
@@ -40,6 +47,10 @@ pub struct RV32I;
 impl Base for RV32I {
     type Addr = u32;
     const XLEN: usize = 32;
+
+    fn supports_rv64() -> bool {
+        false
+    }
 }
 
 /// The RV64I base integer instruction set.
@@ -48,4 +59,8 @@ pub struct RV64I;
 impl Base for RV64I {
     type Addr = u64;
     const XLEN: usize = 32;
+
+    fn supports_rv64() -> bool {
+        true
+    }
 }

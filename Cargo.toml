@@ -11,3 +11,4 @@ readme = "README.md"
 [dependencies]
 bytemuck = "1.4.1"
 num-traits = "0.2.14"
+derive_more = "0.99.11"
