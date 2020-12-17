@@ -1,42 +1,50 @@
-//! Some real documentation is coming soon.
-//!
-//! TODO: Write proper documentation here
-#![warn(missing_docs)]
-#![warn(rust_2018_idioms)]
+//! todo
+#![deny(
+    rust_2018_idioms,
+    clippy::pedantic,
+    private_intra_doc_links,
+    broken_intra_doc_links
+)]
 
-// TODO: Both bases can be enabled and the base is provided via a CLI parameter.
-#[cfg(all(feature = "rv64i", feature = "rv32i"))]
-compile_error!("Only one base can be enabled at the same time.");
+mod config;
+pub use config::*;
 
-#[cfg(all(not(feature = "rv64i"), not(feature = "rv32i")))]
-compile_error!("You have to enable on base feature (rv64i or rv32i)");
-
-pub mod cpu;
-pub mod instruction;
 pub mod memory;
-pub mod mmu;
-pub mod registers;
 
-/// The XLEN constant specifies the length of the integer registers and the
-/// address space.
-#[cfg(feature = "rv64i")]
-pub const XLEN: usize = 64;
-/// The XLEN constant specifies the length of the integer registers and the
-/// address space.
-#[cfg(feature = "rv32i")]
-pub const XLEN: usize = 32;
+use num_traits::Num;
+use std::convert::TryFrom;
 
-/// The address type specifies the type which will be used to access
-/// the memory.
+/// This trait represents every type that can be used as an
+/// address of the CPU/Memory.
+pub trait Address: Num + TryFrom<usize> {}
+
+impl<T: Num + TryFrom<usize>> Address for T {}
+
+/// A [`Base`] represents the different RISC-V
+/// base ISA.
 ///
-/// The `Address` type is a 64bit wide unsigned integer if the base is `RV64I`
-/// and a 32bit wide unsigned integer if the base is `R32I`.
-#[cfg(feature = "rv64i")]
-pub type Address = u64;
-/// The address type specifies the type which will be used to access
-/// the memory.
-///
-/// The `Address` type is a 64bit wide unsigned integer if the base is `RV64I`
-/// and a 32bit wide unsigned integer if the base is `R32I`.
-#[cfg(feature = "rv32i")]
-pub type Address = u32;
+/// Available features are [`RV64I`] and [`RV32I`].
+pub trait Base {
+    /// The address type of this `Base`.
+    type Addr: Address;
+
+    /// The XLEN specifies the number of bits in the address type
+    /// for this base.
+    const XLEN: usize;
+}
+
+/// The RV32I base integer instruction set.
+pub struct RV32I;
+
+impl Base for RV32I {
+    type Addr = u32;
+    const XLEN: usize = 32;
+}
+
+/// The RV64I base integer instruction set.
+pub struct RV64I;
+
+impl Base for RV64I {
+    type Addr = u64;
+    const XLEN: usize = 32;
+}
