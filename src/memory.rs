@@ -83,7 +83,6 @@ impl<B: Base> Memory<B> {
         *bytemuck::from_bytes::<T>(bytes)
     }
 
-    #[allow(clippy::match_wild_err_arm)]
     fn addr_to_usize(addr: B::Addr) -> usize {
         addr.to_u64()
             .try_into()

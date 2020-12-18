@@ -139,7 +139,6 @@ enum Type {
 }
 
 impl Type {
-    #[allow(clippy::similar_names)]
     fn decode<B: Base>(&self, inst: u32) -> Option<Instruction> {
         let opcode = (inst & 0x7F) as u8;
 
