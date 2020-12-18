@@ -21,7 +21,7 @@
 mod mmu;
 pub use mmu::*;
 
-use crate::Base;
+use crate::{Address, Base};
 use bytemuck::Pod;
 use std::{convert::TryInto, marker::PhantomData, mem};
 
@@ -85,8 +85,9 @@ impl<B: Base> Memory<B> {
 
     #[allow(clippy::match_wild_err_arm)]
     fn addr_to_usize(addr: B::Addr) -> usize {
-        use num_traits::ToPrimitive;
-        addr.to_usize().expect("address conversion to usize failed")
+        addr.to_u64()
+            .try_into()
+            .expect("address conversion to usize failed")
     }
 }
 

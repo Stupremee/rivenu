@@ -1,12 +1,84 @@
 use crate::Base;
 use derive_more::{Display, From, Into};
 use num_traits::Zero;
+use std::cell::Cell;
 
-/// Represents a register by his index.
+macro_rules! register_consts {
+    ($($name:ident = $val:literal;)*$(,)?) => {
+        pub mod csr {
+            use super::CsrRegister;
+            $(
+                pub const $name: CsrRegister = CsrRegister($val);
+            )*
+        }
+    };
+}
+
+// Definitions of the CSR numbers.
+//
+// Not every register is defined here.
+register_consts! {
+    USTATUS = 0x000;
+    UIE = 0x004;
+    UTVEC = 0x005;
+
+    USCRATCH = 0x040;
+    UEPC = 0x041;
+    UCAUSE = 0x042;
+    UTVAL = 0x043;
+    UIP = 0x044;
+
+
+    SSTATUS = 0x100;
+    SEDELEG = 0x102;
+    SIDELEG = 0x103;
+    SIE = 0x104;
+    STVEC = 0x105;
+    SCOUNTEREN = 0x106;
+
+    SSCRATCH = 0x140;
+    SEPC = 0x141;
+    SCAUSE = 0x142;
+    STVAL = 0x143;
+    SIP = 0x144;
+
+    SATP = 0x180;
+
+
+    MVENDORID = 0xF11;
+    MARCHID = 0xF12;
+    MIMPID = 0xF13;
+    MHARTID = 0xF14;
+
+    MSTATUS = 0x300;
+    MISA = 0x301;
+    MEDELEG = 0x302;
+    MIDELEG = 0x303;
+    MIE = 0x304;
+    MTVEC = 0x305;
+    MCOUNTEREN = 0x306;
+
+    MSCRATCH = 0x340;
+    MEPC = 0x341;
+    MCAUSE = 0x342;
+    MTVAL = 0x343;
+    MIP = 0x344;
+}
+
+/// Number of CSR registers.
+pub const CSR_CAPACITY: usize = 4096;
+
+/// Represents a X Register by his index.
 #[allow(clippy::module_name_repetitions)]
 #[repr(transparent)]
 #[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, From, Into)]
-pub struct RegisterIndex(usize);
+pub struct XRegister(u8);
+
+/// Represents the number of a CSR register.
+#[allow(clippy::module_name_repetitions)]
+#[repr(transparent)]
+#[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, From, Into)]
+pub struct CsrRegister(u16);
 
 /// Implementation of the registers for the RISC-V ISA.
 ///
@@ -27,7 +99,9 @@ pub struct Registers<B: Base> {
     ///
     /// We only hold 31 registers here, because the `x0` register is hardcoded
     /// in the read / write methods.
-    xregs: Box<[B::Addr]>,
+    xregs: Box<[Cell<B::Addr>]>,
+    /// The list of control and status registers.
+    csr: Box<[Cell<B::Addr>]>,
     /// The current program counter.
     pc: B::Addr,
 }
@@ -36,7 +110,9 @@ impl<B: Base> Registers<B> {
     /// Creates a new `Registers` struct, with all registers set to 0.
     pub fn new() -> Self {
         Self {
-            xregs: vec![B::Addr::zero(); B::REG_COUNT - 1].into_boxed_slice(),
+            xregs: vec![Cell::new(B::Addr::zero()); 31].into_boxed_slice(),
+            // TODO: Initialize special register, like `misa`
+            csr: vec![Cell::new(B::Addr::zero()); CSR_CAPACITY].into_boxed_slice(),
             pc: B::Addr::zero(),
         }
     }
@@ -55,11 +131,11 @@ impl<B: Base> Registers<B> {
     /// Reads the value of the from the integer register `reg`.
     ///
     /// Panics if the given register index is out of bounds.
-    pub fn read_x_reg(&self, reg: RegisterIndex) -> B::Addr {
+    pub fn read_x(&self, reg: XRegister) -> B::Addr {
         if reg.0 == 0 {
             B::Addr::zero()
         } else {
-            self.xregs[reg.0]
+            self.xregs[reg.0 as usize].get()
         }
     }
 
@@ -67,9 +143,26 @@ impl<B: Base> Registers<B> {
     ///
     /// A write to `x0` will result in a noop, and write into a register
     /// that is not valid, will cause a panic.
-    pub fn write_x_reg(&mut self, reg: RegisterIndex, val: B::Addr) {
+    pub fn write_x(&self, reg: XRegister, val: B::Addr) {
         if reg.0 != 0 {
-            self.xregs[reg.0] = val;
+            self.xregs[reg.0 as usize].set(val);
         }
+    }
+
+    /// Reads a value from CSR register identified by it's number.
+    pub fn read_csr(&self, reg: CsrRegister) -> B::Addr {
+        self.csr[reg.0 as usize].get()
+    }
+
+    /// Writes a value into a CSR register identified by his number.
+    pub fn write_csr(&self, reg: CsrRegister, value: B::Addr) {
+        const READ_ONLY_REGS: &[CsrRegister] =
+            &[csr::MVENDORID, csr::MARCHID, csr::MIMPID, csr::MHARTID];
+
+        if READ_ONLY_REGS.contains(&reg) {
+            return;
+        }
+
+        self.csr[reg.0 as usize].set(value);
     }
 }

@@ -1,7 +1,7 @@
 //! Parsing of RISC-V instructions.
 
 use super::{Instruction, Kind, Variant};
-use crate::Base;
+use crate::{cpu::XRegister, Base};
 use std::collections::HashMap;
 use std::lazy::SyncLazy;
 
@@ -154,9 +154,9 @@ impl Type {
                 let kind = r_kind_get::<B>(opcode, funct3, funct7)?;
                 Some(Instruction {
                     variant: Variant::R {
-                        rd: (rd as usize).into(),
-                        rs1: (rs1 as usize).into(),
-                        rs2: (rs2 as usize).into(),
+                        rd: XRegister::from(rd as u8),
+                        rs1: XRegister::from(rs1 as u8),
+                        rs2: XRegister::from(rs2 as u8),
                     },
                     kind,
                     raw: inst,
@@ -199,8 +199,8 @@ impl Type {
                     return Some(Instruction {
                         variant: Variant::I {
                             val: shamt as i32,
-                            rd: (rd as usize).into(),
-                            rs1: (rs1 as usize).into(),
+                            rd: XRegister::from(rd as u8),
+                            rs1: XRegister::from(rs1 as u8),
                         },
                         kind,
                         raw: inst,
@@ -236,8 +236,8 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::I {
                         val: imm,
-                        rd: (rd as usize).into(),
-                        rs1: (rs1 as usize).into(),
+                        rd: XRegister::from(rd as u8),
+                        rs1: XRegister::from(rs1 as u8),
                     },
                     kind,
                     raw: inst,
@@ -258,8 +258,8 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::S {
                         val: imm,
-                        rs1: (rs1 as usize).into(),
-                        rs2: (rs2 as usize).into(),
+                        rs1: XRegister::from(rs1 as u8),
+                        rs2: XRegister::from(rs2 as u8),
                     },
                     kind,
                     raw: inst,
@@ -278,7 +278,7 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::U {
                         val: imm,
-                        rd: (rd as usize).into(),
+                        rd: XRegister::from(rd as u8),
                     },
                     kind,
                     raw: inst,
@@ -306,8 +306,8 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::B {
                         val: imm,
-                        rs1: (rs1 as usize).into(),
-                        rs2: (rs2 as usize).into(),
+                        rs1: XRegister::from(rs1 as u8),
+                        rs2: XRegister::from(rs2 as u8),
                     },
                     kind,
                     raw: inst,
@@ -334,7 +334,7 @@ impl Type {
                 Some(Instruction {
                     variant: Variant::J {
                         val: imm_sign,
-                        rd: (rd as usize).into(),
+                        rd: XRegister::from(rd as u8),
                     },
                     kind,
                     raw: inst,

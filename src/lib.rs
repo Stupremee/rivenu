@@ -50,18 +50,13 @@ impl<T: Num + ToPrimitive + FromPrimitive + Clone + Copy> Address for T {
 /// base ISA.
 ///
 /// Available features are [`RV64I`] and [`RV32I`].
-pub trait Base {
+pub trait Base: sealed::Sealed {
     /// The address type of this `Base`.
     type Addr: Address;
 
     /// The XLEN specifies the number of bits in the address type
     /// for this base.
     const XLEN: usize;
-
-    /// The number of integer registers for this base.
-    ///
-    /// Currently not required, but will be needed for the RV32E base.
-    const REG_COUNT: usize;
 
     /// Returns whether this base ISA contains the `RV64I` instruction set.
     ///
@@ -75,7 +70,6 @@ pub struct RV32I;
 impl Base for RV32I {
     type Addr = u32;
     const XLEN: usize = 32;
-    const REG_COUNT: usize = 32;
 
     fn supports_rv64() -> bool {
         false
@@ -88,9 +82,15 @@ pub struct RV64I;
 impl Base for RV64I {
     type Addr = u64;
     const XLEN: usize = 64;
-    const REG_COUNT: usize = 32;
 
     fn supports_rv64() -> bool {
         true
     }
+}
+
+mod sealed {
+    pub trait Sealed {}
+
+    impl Sealed for super::RV64I {}
+    impl Sealed for super::RV32I {}
 }

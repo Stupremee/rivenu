@@ -11,7 +11,7 @@
 mod parse;
 pub use parse::*;
 
-use crate::cpu::RegisterIndex;
+use crate::cpu::XRegister;
 use std::fmt;
 
 /// A general RISC-V Instruction composed of a [`Variant`],
@@ -50,11 +50,11 @@ pub enum Variant {
     /// source registers, and store the result in a destination register.
     R {
         /// Destination
-        rd: RegisterIndex,
+        rd: XRegister,
         /// Source 1
-        rs1: RegisterIndex,
+        rs1: XRegister,
         /// Source 2
-        rs2: RegisterIndex,
+        rs2: XRegister,
     },
 
     /// The I(mmediate) variant is used to process data from a register
@@ -63,9 +63,9 @@ pub enum Variant {
         /// Immediate
         val: i32,
         /// Destination
-        rd: RegisterIndex,
+        rd: XRegister,
         /// Source 1
-        rs1: RegisterIndex,
+        rs1: XRegister,
     },
 
     /// The S(tore) variant is used to store data to some memory
@@ -74,9 +74,9 @@ pub enum Variant {
         /// Immediate
         val: i32,
         /// Source 1
-        rs1: RegisterIndex,
+        rs1: XRegister,
         /// Source 2
-        rs2: RegisterIndex,
+        rs2: XRegister,
     },
 
     /// The B(ranch) variant is used to compare two registers
@@ -87,9 +87,9 @@ pub enum Variant {
         /// The conditional branch range is ±4 KiB.
         val: i32,
         /// Source 1
-        rs1: RegisterIndex,
+        rs1: XRegister,
         /// Source 2
-        rs2: RegisterIndex,
+        rs2: XRegister,
     },
 
     /// The U(pper immediate) variant is like immediate, but without
@@ -99,7 +99,7 @@ pub enum Variant {
         /// Immediate
         val: i32,
         /// Destination
-        rd: RegisterIndex,
+        rd: XRegister,
     },
 
     /// The J(ump) variant is used for unconditional jumps to provide
@@ -108,7 +108,7 @@ pub enum Variant {
         /// The relative offset encoded in multiples of 2 bytes.
         val: i32,
         /// Destination
-        rd: RegisterIndex,
+        rd: XRegister,
     },
 }
 
@@ -127,7 +127,7 @@ impl fmt::Display for Variant {
 
 /// Internel macro to generate the `Kind` enum.
 macro_rules! kind_enum {
-    ($($entry:ident -> $str:expr),*) => {
+    ($($entry:ident -> $str:expr),*$(,)?) => {
         use derive_more::Display;
         /// A `Kind` represents any instruction kind (e.g `ld`, `addi`, etc).
         #[allow(non_camel_case_types)]
@@ -204,5 +204,5 @@ kind_enum! {
     SUBW -> "subw",
     SLLW -> "sllw",
     SRLW -> "srlw",
-    SRAW -> "sraw"
+    SRAW -> "sraw",
 }
