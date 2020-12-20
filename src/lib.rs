@@ -1,6 +1,11 @@
 //! todo
 #![feature(once_cell)]
-#![deny(rust_2018_idioms, private_intra_doc_links, broken_intra_doc_links)]
+#![deny(
+    rust_2018_idioms,
+    clippy::pedantic,
+    private_intra_doc_links,
+    broken_intra_doc_links
+)]
 #![allow(
     clippy::must_use_candidate,
     clippy::cast_possible_truncation,

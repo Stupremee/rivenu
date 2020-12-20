@@ -69,11 +69,13 @@ register_consts! {
 pub const CSR_CAPACITY: usize = 4096;
 
 /// Represents a X Register by his index.
+#[allow(clippy::module_name_repetitions)]
 #[repr(transparent)]
 #[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, From, Into)]
 pub struct XRegister(u8);
 
 /// Represents the number of a CSR register.
+#[allow(clippy::module_name_repetitions)]
 #[repr(transparent)]
 #[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, From, Into)]
 pub struct CsrRegister(u16);
